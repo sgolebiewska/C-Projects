@@ -1,4 +1,4 @@
-This project idea was created by Technical Univeristy Gdańsk
+This project idea was created by Gdańsk Technical Univeristy <br/>
 Commands: <br/>
  <br/>
 In the following commands, i and j are positive integers (fit within int), while n is a legal attribute name. <br/>
