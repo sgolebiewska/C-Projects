@@ -1,0 +1,588 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <iostream>
+#include <cstring>
+
+using namespace std;
+
+#define SELECTOR_LENGTH 330
+#define SIZE 128
+
+#define SMALL_A 65
+#define CAPITAL_A 97
+#define SMALL_Z 90
+#define CAPITAL_Z 122
+#define ZERO 48
+#define NINE 57
+#define NEW_LINE '\n'
+#define TABULATOR '\t'
+#define CARRIAGE_RETURN '\r'
+#define COMMA ','
+#define LEFT_BRACKET '{'
+#define RIGHT_BRACKET '}'
+#define COLON ':'
+#define SEMICOLON ';'
+#define END_STRING '\0'
+#define STAR '*'
+#define ALL '*'
+#define QUESTION_MARK '?'
+#define ATTRIBUTE 'A'
+#define E_COMMAND 'E'
+#define SELECTOR 'S'
+#define DELETE 'D'
+#define SPACE ' '
+
+struct Attribute {
+    char name[SIZE];
+    char value[SIZE];
+};
+
+struct Selector {
+    char name[SELECTOR_LENGTH];
+};
+
+struct Section {
+    int numberOfSelectors;
+    Selector selectors[SIZE];
+    int numberOfAttributes;
+    Attribute attributes[SIZE];
+    Section* prev;
+    Section* next;
+};
+
+enum Rule {
+    SelectorWriting,
+    AttributeWriting
+};
+
+int CharToInt(char* c); //changes digit character input to integers
+void GetName(char* c, int nameIndex, char* name); //sets the name from input
+bool isAlpha(char c); //returns true if the char is a letter from alphaber a-z or A-Z
+bool isDigit(char c); //returns true if char is a digit 0-9
+bool isEqual(const char* A, const char* B);//checks if 2 arrays of chars are equal or not
+
+void ResumeReading(char* c, bool* inSelector, bool* inAttribute, int* idx, int* numberOfSelectors, Section* currentSection); // **** - resume reading CSS; 
+void PrintNumberSections(int* number); // ? - print the number of CSS sections;
+void PrintSelectorForSection(char* c, Section* head, int* sectionNumber, int* numberSections);//i,S,j - print the j-th selector for the i-th section (section and attribute numbers start from 1), if there is no section or selector, skip;
+void NumberSelectorsForSection(Section* head, int* sectionNumber, int* numberSections); //i,S,? - print the number of selectors for section number i (section and attribute numbers start from 1), if there is no such block, skip;
+void TotalOccurencesSelector(bool isDuplicated[SIZE], char attrName[SIZE], Section* head); //z,S,? - print the total (for all blocks) number of occurrences of selector z. It can be 0;
+void NumberAttributesForSection(Section* head, int* sectionNumber, int* numberSections);//i,A,? - print the number of attributes for section number i, if there is no such block or section, skip;
+void AttributeValueForName(char* c, Section* head, int* sectionNum, int* numberSections);//i,A,n - print the value of the attribute with the name n for the i-th section, if there is no such attribute, skip;
+void TotalOccurencesAttribute(Section* head, char* attributeName);//n,A,? - print the total (for all blocks) number of occurrences of attribute named n (duplicates should be removed when reading).It can be 0;
+void AttributeValueForSelector(char* c, char* attributeName, Section* head);//z,E,n - print the value of the attribute named n for the selector z, in case of multiple occurrences of selector z, take the last one.If there is no such attribute, skip;
+
+void SplitSelectors(int* index, int* idx, int* numberOfSelectors, Selector* helperSelector, Selector* selectorsArray);//divides selectors with comma
+void WriteIntoSelector(char* c, int* idx, Selector* helperSelector);//handles writing into selectors
+void CheckForDuplicates(int* numberOfSelectors, Section* newSection, bool* isDuplicated, Selector* selectorsArray);//checks if some selector name is duplicated
+
+void CheckForOverride(Section* currentSection, Attribute* attributes);//checks if some attribute value is overriden
+void WriteIntoAttribute(bool* inAttributeValue, char* c, Attribute* attributes, Section* currentSection, int* attributeValueIndex, int* idx);//handles writing into attributes
+void AttributesHandling(char* c, bool* inSelector, bool* inAttribute, bool* inAttributeValue, int* idx, int* attributeValueIndex, Section* currentSection, Attribute* attributes);//handles attributes(brackets, semicolons etc)
+void InputHandling();
+
+int main() {
+    InputHandling();
+
+    return 0;
+}
+
+int CharToInt(char* c) {
+    //changes digit character input to integers
+    int number = *c - char(ZERO);
+    while (cin.get(*c)) {
+        if (isdigit(*c)) number = number * 10 + (*c - char(ZERO));
+        else break;
+    }
+    return number;
+}
+
+void GetName(char* c, int nameIndex, char* name) {
+    //sets the name from input
+    while (*c != NEW_LINE && *c != COMMA && nameIndex < SIZE - 1) {
+        name[nameIndex++] = *c;
+        cin.get(*c);
+    }
+    name[nameIndex] = END_STRING;
+}
+
+bool isAlpha(char c) {
+    //returns true if the char is a letter from alphaber a-z or A-Z
+    if((c>=SMALL_A && c<= SMALL_Z)||(c>=CAPITAL_A && c<=CAPITAL_Z)) return true;
+    else return false;
+}
+
+bool isDigit(char c) {
+    //returns true if char is a digit 0-9
+    if (c >= ZERO && c <= NINE) return true;
+    else return false;
+}
+
+bool isEqual(const char* A, const char* B) {
+    //checks if 2 arrays of chars are equal or not
+    if (strlen(A) != strlen(B)) {
+        return false;
+    }
+    for (int i = 0; A[i] != '\0'; i++) {
+        if (A[i] != B[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void ResumeReading(char* c, bool* inSelector, bool* inAttribute, int* idx, int* numberOfSelectors, Section* currentSection) {
+    // **** - resume reading CSS; 
+    if (*c == STAR) {
+        cin.get(*c);
+        if (*c == STAR) {
+            cin.get(*c);
+            if (*c == STAR) {
+                cin.get(*c);
+                if (*c == NEW_LINE) {
+                    *inSelector = true;
+                    *inAttribute = false;
+                    *idx = 0;
+                    *numberOfSelectors = 0;
+                    currentSection = nullptr;
+                }
+            }
+        }
+    }
+}
+
+void PrintNumberSections(int* number) {
+    // ? - print the number of CSS sections; 
+    cout << "? == " << *number << endl;
+}
+
+void PrintSelectorForSection(char* c, Section* head, int* sectionNumber, int* numberSections) {
+    //i,S,j - print the j-th selector for the i-th section (section and attribute numbers start from 1), if there is no section or selector, skip;
+    int selectorNumber = CharToInt(c);
+    if (*c == NEW_LINE) {
+        if (*sectionNumber > 0 && *sectionNumber <= *numberSections) {
+            int index = 1;
+            Section* section = head;
+            while (section) {
+                if (index == *sectionNumber) {
+                    if (selectorNumber > 0 && selectorNumber <= section->numberOfSelectors) cout << *sectionNumber << ",S," << selectorNumber << " == " << section->selectors[selectorNumber - 1].name << endl;
+                    break;
+                }
+                section = section->next;
+                index++;
+            }
+        }
+    }
+}
+
+void NumberSelectorsForSection(Section* head, int* sectionNumber, int* numberSections) {
+    //i,S,? - print the number of selectors for section number i (section and attribute numbers start from 1), if there is no such block, skip;
+    if (*sectionNumber > 0 && *sectionNumber <= *numberSections) {
+        int index = 1;
+        Section* section = head;
+        while (section) {
+            if (index == *sectionNumber) {
+                cout << *sectionNumber << ",S,? == " << section->numberOfSelectors << endl;
+                break;
+            }
+            section = section->next;
+            index++;
+        }
+    }
+}
+
+void TotalOccurencesSelector(bool isDuplicated[SIZE], char selectorName[SIZE], Section* head) {
+    //z,S,? - print the total (for all blocks) number of occurrences of selector z. It can be 0;
+    Section* section = head;
+    int notDuplicated = 0;
+    while (section) {
+        int a = 0;
+        for (; a < section->numberOfSelectors; a++) {
+            if (!isDuplicated[a] && isEqual(section->selectors[a].name, selectorName)) notDuplicated++;
+        }
+        section = section->next;
+    }
+    cout << selectorName << ",S,? == " << notDuplicated << endl;
+}
+
+void NumberAttributesForSection(Section* head, int* sectionNumber, int* numberSections) {
+    //i,A,? - print the number of attributes for section number i, if there is no such block or section, skip;
+    if (*sectionNumber > 0 && *sectionNumber <= *numberSections) {
+        int index = 1;
+        Section* section = head;
+        while (section) {
+            if (index == *sectionNumber) {
+                cout << *sectionNumber << ",A,? == " << section->numberOfAttributes << endl;
+                break;
+            }
+            section = section->next;
+            index++;
+        }
+    }
+}
+
+void AttributeValueForName(char* c, Section* head, int* sectionNumber, int* numberSections) {
+    //i,A,n - print the value of the attribute with the name n for the i-th section, if there is no such attribute, skip;
+    char attributeName[SIZE];
+    int attributeNameIndex = 0;
+    GetName(c, attributeNameIndex, attributeName);
+    if (*sectionNumber > 0 && *sectionNumber <= *numberSections) {
+        int index = 1;
+        Section* section = head;
+        while (section) {
+            if (index == *sectionNumber) {
+                int a = 0;
+                for (; a < section->numberOfAttributes; a++) {
+                    if (isEqual(section->attributes[a].name, attributeName)) {
+                        cout << *sectionNumber << ",A," << attributeName << " == " << section->attributes[a].value << endl;
+                        break;
+                    }
+                }
+                break;
+            }
+            section = section->next;
+            index++;
+        }
+    }
+}
+
+void TotalOccurencesAttribute(Section* head, char* attributeName) {
+    //n,A,? - print the total (for all blocks) number of occurrences of attribute named n (duplicates should be removed when reading).It can be 0;
+    int totalOccurences = 0;
+    Section* section = head;
+    while (section) {
+        int a = 0; 
+        for (; a < section->numberOfAttributes; a++) {
+            if (isEqual(section->attributes[a].name, attributeName)) totalOccurences++;
+        }
+        section = section->next;
+    }
+    cout << attributeName << ",A,? == " << totalOccurences << endl;
+}
+
+void AttributeValueForSelector(char* c, char* selectorName, Section* head) {
+    //z,E,n - print the value of the attribute named n for the selector z, in case of multiple occurrences of selector z, take the last one.If there is no such attribute, skip;
+    cin.get(*c);
+    int attributeNameIndex = 0;
+    char attributeName[SIZE];
+    GetName(c, attributeNameIndex, attributeName);
+    Section* currentSection = head;
+    const char* attributeValue = nullptr;
+    while (currentSection) {
+        bool attrExist = false;
+        int a = 0, aa= currentSection->numberOfAttributes - 1;
+        for (; a < currentSection->numberOfSelectors; a++) {
+            if (isEqual(currentSection->selectors[a].name, selectorName)) {
+                attrExist = true;
+                break;
+            }
+        }
+        if (attrExist) {
+            for (; aa >= 0; aa--) {
+                if (isEqual(currentSection->attributes[aa].name, attributeName)) {
+                    attributeValue = currentSection->attributes[aa].value;
+                    break;
+                }
+            }
+        }
+        currentSection = currentSection->next;
+    }
+    if (attributeValue) {
+        cout << selectorName << ",E," << attributeName << " == " << attributeValue << endl;
+    }
+}
+
+void SplitSelectors(int* index, int* idx, int* numberOfSelectors, Selector* helperSelector, Selector* selectorsArray) {
+    int a = 0;
+    for (; a < *idx; a++) {
+        if ((*helperSelector).name[a] == COMMA) {
+            (*numberOfSelectors)++;
+            Selector temp;
+            memset(temp.name, 0, sizeof(temp.name));
+            strncpy(temp.name, &(*helperSelector).name[*index], a - *index);
+            strcpy(selectorsArray[*numberOfSelectors - 1].name, temp.name);
+            *index = a + 1;
+        }
+    }
+    if (strlen((*helperSelector).name) != 0) {//if not an empty selector
+        Selector temp;
+        memset(temp.name, 0, sizeof(temp.name));
+        strncpy(temp.name, &(*helperSelector).name[*index], *idx - *index);
+        strcpy(selectorsArray[*numberOfSelectors].name, temp.name);
+        (*numberOfSelectors)++;
+    }
+}
+
+void WriteIntoSelector(char* c, int* idx, Selector* helperSelector) {
+    switch (*c) {
+    case NEW_LINE:
+    case CARRIAGE_RETURN: 
+    case TABULATOR:
+            if (*c == NEW_LINE) (*helperSelector).name[(*idx)++] = SPACE;
+            break;
+    case SPACE:
+        (*helperSelector).name[(*idx)++] = *c;
+        break;
+    default:
+        (*helperSelector).name[(*idx)++] = *c;
+        break;
+    }
+}
+
+void CheckForDuplicates(int* numberOfSelectors, Section* newSection, bool* isDuplicated, Selector* selectorsArray) {
+    int a = 0;
+    for (; a < *numberOfSelectors; a++) {
+        strcpy(newSection->selectors[a].name, selectorsArray[a].name);
+        int b = 0;
+        for (; b < a; b++) {
+            if (isEqual(newSection->selectors[a].name, newSection->selectors[b].name)) {
+                isDuplicated[a] = true;
+                break;
+            }
+        }
+        b = 0;
+    }
+}
+
+void CheckForOverride(Section* currentSection, Attribute* attributes) {
+    bool isOverriden = false;
+    int a = 0;
+    for (; a < currentSection->numberOfAttributes; a++) {
+        if (isEqual(currentSection->attributes[a].name, attributes[currentSection->numberOfAttributes].name)) {
+            strcpy(currentSection->attributes[a].value, attributes[currentSection->numberOfAttributes].value);
+            isOverriden = true;
+        }
+    }
+    if (!isOverriden) {
+        currentSection->attributes[currentSection->numberOfAttributes] = attributes[currentSection->numberOfAttributes];
+        currentSection->numberOfAttributes++;
+    }
+}
+
+void WriteIntoAttribute(bool* inAttributeValue, char* c, Attribute* attributes, Section* currentSection, int* attributeValueIndex, int* idx) {
+    if (*inAttributeValue) attributes[currentSection->numberOfAttributes].value[(*attributeValueIndex)++] = *c;
+    else attributes[currentSection->numberOfAttributes].name[(*idx)++] = *c;
+}
+
+void AttributesHandling(char* c, bool* inSelector, bool* inAttribute, bool* inAttributeValue, int* idx, int* attributeValueIndex, Section* currentSection, Attribute* attributes) {
+    switch (*c) {
+    case RIGHT_BRACKET:
+            *inSelector = true;
+            *inAttribute = false;
+            *inAttributeValue = false;
+            *idx = 0;
+            *attributeValueIndex = 0;
+            break;
+    case COLON:
+            attributes[currentSection->numberOfAttributes].name[(*idx)] = END_STRING; //end the name of attribute when ":"
+            *idx = 0;
+            *inAttributeValue = true;
+            break;
+    case SEMICOLON:
+            attributes[currentSection->numberOfAttributes].value[(*attributeValueIndex)] = END_STRING; //end the value of attribute when ";"
+            CheckForOverride(currentSection, attributes);
+            *inAttributeValue = false;
+            *idx = 0;
+            *attributeValueIndex = 0;
+            break;
+    case SPACE: 
+    case TABULATOR:
+    case CARRIAGE_RETURN: 
+    case NEW_LINE: //whitespaces handling
+            if (*inAttributeValue) attributes[currentSection->numberOfAttributes].value[(*attributeValueIndex)++] = *c;
+            break;
+    default:
+        WriteIntoAttribute(inAttributeValue, c, attributes, currentSection, attributeValueIndex, idx);
+        break;
+    }
+}
+
+void InputHandling() {
+    Section* head = nullptr, * tail = nullptr, * currentSection = nullptr, * newSection = nullptr;
+    Attribute attributes[SIZE];
+    Selector helperSelector, selectorsArray[SIZE];
+    Rule rule;
+    char c;
+    bool inSelector = true, inAttribute = false, inAttributeValue = false, isDuplicated[SIZE] = { false };
+    int attributeValueIndex = 0;
+    int idx = 0;
+    int numberOfSelectors = 0;
+    int numberSections = 0;
+
+    while (cin.get(c)) {
+        if (inSelector) rule = SelectorWriting;
+        else if (inAttribute) rule = AttributeWriting;
+
+        if (c == NEW_LINE) continue; // skip newlines
+        else if (c == QUESTION_MARK) {// ???? - start of command section;
+            cin.get(c);
+            if (c == QUESTION_MARK) {
+                cin.get(c);
+                if (c == QUESTION_MARK) {
+                    cin.get(c);
+                    if (c == QUESTION_MARK) {
+                        cin.get(c);
+                        if (c == NEW_LINE) {
+                            while (cin.get(c)) {
+                                if (c == STAR) {
+                                    cin.get(c);
+                                    ResumeReading(&c, &inSelector, &inAttribute, &idx, &numberOfSelectors, currentSection);
+                                    break;
+                                }
+                                else if (c == QUESTION_MARK) PrintNumberSections(&numberSections);
+                                else if (isDigit(c)) {
+                                    int sectionNumber = CharToInt(&c);
+                                    Section* section = nullptr;
+                                    if (c == COMMA) {
+                                        cin.get(c);
+                                        if (c == SELECTOR) {
+                                            cin.get(c);
+                                            if (c == COMMA) {
+                                                cin.get(c);
+                                                if (c == QUESTION_MARK) NumberSelectorsForSection(head, &sectionNumber, &numberSections);
+                                                else if (isDigit(c)) PrintSelectorForSection(&c, head, &sectionNumber, &numberSections);
+                                            }
+                                        }
+                                        else if (c == ATTRIBUTE) {
+                                            cin.get(c);
+                                            if (c == COMMA) {
+                                                cin.get(c);
+                                                if (c == QUESTION_MARK) NumberAttributesForSection(head, &sectionNumber, &numberSections);
+                                                else AttributeValueForName(&c, head, &sectionNumber, &numberSections);
+                                            }
+                                        }
+                                        else if (c == DELETE) {
+                                            cin.get(c);
+                                            if (c == COMMA) {
+                                                cin.get(c);
+                                                if (c == ALL) {
+                                                    //i,D,* - remove the entire section number i (i.e., separators+attributes), after successful
+                                                    //        execution, print "deleted";
+                                                    Section* current = head, * previous = nullptr;
+                                                    int currentSectionNumber = 1;
+                                                    while (current && currentSectionNumber != sectionNumber) {
+                                                        previous = current;
+                                                        current = current->next;
+                                                        currentSectionNumber++;
+                                                    }
+                                                    if (current) {
+                                                        if (previous) previous->next = current->next;
+                                                        else head = current->next;
+                                                        if (current == tail) tail = previous;
+                                                        delete current;
+                                                        numberSections--;
+                                                        cout << sectionNumber << ",D,* == deleted" << endl;
+                                                    }
+                                                }
+                                                else if (isAlpha(c)) {
+                                                    //i,D,n - remove the attribute named n from the i-th section, if the section becomes empty as a
+                                                    //        result of the operation, it should also be removed(along with any selectors), after successful
+                                                    //        execution, print "deleted".
+                                                    int attrNameIndex = 0;
+                                                    char attrName[SIZE];
+                                                    GetName(&c, attrNameIndex, attrName);
+                                                    Section* current = head, * previous = nullptr;
+                                                    int sectionIndex = 1;
+                                                    while (current != nullptr) {
+                                                        if (sectionIndex == sectionNumber) {
+                                                            int a = 0;
+                                                            for (; a< current->numberOfAttributes; a++) {
+                                                                if (isEqual(current->attributes[a].name, attrName)) {
+                                                                    bool success = false;
+                                                                    int b = a;
+                                                                    for (; b < current->numberOfAttributes - 1; b++) {
+                                                                        current->attributes[b] = current->attributes[b + 1];
+                                                                    }
+                                                                    current->numberOfAttributes--;
+                                                                    success = true;
+                                                                    if (current->numberOfAttributes == 0) {
+                                                                        if (previous) previous->next = current->next;
+                                                                        else head = current->next;
+                                                                        if (current == tail) tail = previous;
+                                                                        delete current;
+                                                                        numberSections--;
+                                                                        success = true;
+                                                                    }
+                                                                    if (success) cout << sectionNumber << ",D," << attrName << " == deleted" << endl;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            break;
+                                                        }
+                                                        previous = current;
+                                                        current = current->next;
+                                                        sectionIndex++;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                else {
+                                    int attrNameIndex = 0;
+                                    char attrName[SIZE];
+                                    GetName(&c, attrNameIndex, attrName);
+                                    if (c == COMMA) {
+                                        cin.get(c);
+                                        if (c == ATTRIBUTE) {
+                                            cin.get(c);
+                                            if (c == COMMA) {
+                                                cin.get(c);
+                                                if (c == QUESTION_MARK) TotalOccurencesAttribute(head, attrName);
+                                            }
+                                        }
+                                        else if (c == E_COMMAND) {
+                                            cin.get(c);
+                                            if (c == COMMA) AttributeValueForSelector(&c, attrName, head);
+                                        }
+                                        else if (c == SELECTOR) {
+                                            cin.get(c);
+                                            if (c == COMMA) {
+                                                cin.get(c);
+                                                if (c == QUESTION_MARK) TotalOccurencesSelector(isDuplicated, attrName, head);
+                                            }
+                                        }
+                                        else if (c == SPACE) { //This deals with inconvenient commands
+                                            while (c != QUESTION_MARK) {
+                                                cin.get(c);
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        switch (rule) {
+        case SelectorWriting:
+            if (c == LEFT_BRACKET) {
+                if (helperSelector.name[idx - 1] == SPACE) helperSelector.name[idx - 1] = END_STRING;
+                else helperSelector.name[idx] = END_STRING;
+                int currentSelectorIndex = 0;
+                int numberOfSelectorsInCurrentSection = 0;
+                SplitSelectors( &currentSelectorIndex, &idx, &numberOfSelectorsInCurrentSection, &helperSelector, selectorsArray);
+                Section* newSection = new Section;
+                memset(newSection->attributes, 0, sizeof(newSection->attributes));
+                newSection->numberOfAttributes = 0;
+                newSection->prev = tail;
+                newSection->next = nullptr;
+                newSection->numberOfSelectors = numberOfSelectorsInCurrentSection;
+                CheckForDuplicates(&numberOfSelectorsInCurrentSection, newSection, isDuplicated, selectorsArray);
+                if (!head) head = newSection;
+                if (tail) tail->next = newSection;
+                tail = newSection;
+                currentSection = newSection;
+                inSelector = false;
+                inAttribute = true;
+                idx = 0;
+                numberSections++;
+            }
+            else WriteIntoSelector(&c, &idx, &helperSelector);
+            break;
+        case AttributeWriting:
+            AttributesHandling(&c, &inSelector, &inAttribute, &inAttributeValue, &idx, &attributeValueIndex, currentSection, attributes);
+        }
+    }
+}
