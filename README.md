@@ -1,6 +1,7 @@
 # Univeristy Projects (ideas: Gdańsk Technical University)
 <br/> 
 Object Oriented 2D Game <br/>
+<br/>
 This project focuses on creating a 2D virtual world simulator with the primary objective of implementing a grid structure of dimensions NxM. <br/> 
 The virtual environment will host diverse life forms, each exhibiting distinct behaviors based on their species. <br/> 
 Every organism is designated to occupy a specific cell within the 2D grid array, ensuring that each cell accommodates only one organism at a time. <br/> 
